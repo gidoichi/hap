@@ -1,0 +1,8 @@
+*.o
+*.log
+/results
+/tmp
+/bin/*
+!/bin/*.*
+/test/*
+!/test/*.*

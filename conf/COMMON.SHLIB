@@ -1,0 +1,20 @@
+# -*- mode:shell-script -*- ##########################################
+#
+# COMMON.SHLIB -- The Common Configuration File
+#
+######################################################################
+
+
+######################################################################
+# Files and Directories
+######################################################################
+
+# === ディレクトリの位置 =============================================
+#Homedir=       # Home directory of this app (unnecessary to set normally)
+Dir_tmp="$Homedir/tmp"
+
+# === windows上で起動している際の設定 ================================
+if type powershell.exe 1>&2 >/dev/null; then
+    export TMPDIR=$(wslpath $(powershell.exe -Command '$Home' | tr -d "\r") |
+                        sed 's#$#/AppData/Local/Temp#')
+fi
