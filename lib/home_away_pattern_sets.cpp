@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <iterator>
+#include <iostream>
+#include <set>
+#include <string>
+#include <vector>
 #include "home_away_pattern_sets.h"
 
 // 比較や代入時にチーム数の異なるHAPを考慮しない
@@ -8,12 +13,12 @@
 HomeAwayPatternSets::HomeAwayPatternSets(int n)
   : nteams(n)
 {
-  perm_rows = new int[n];
-  perm_cols = new int[n-1];
-  table = new HomeAway*[n];
+  perm_rows.resize(n);
+  perm_cols.resize(n-1);
+  table.resize(n);
   for (int i = 0; i < n; ++i) {
     perm_rows[i] = i;
-    table[i] = new HomeAway[n];
+    table[i].resize(n);
   }
   for (int i = 0; i < n-1; ++i) {
     perm_cols[i] = i;
@@ -24,16 +29,6 @@ HomeAwayPatternSets::HomeAwayPatternSets(const HomeAwayPatternSets &other)
   : HomeAwayPatternSets(other.nteams)
 {
   *this = other;
-}
-
-HomeAwayPatternSets::~HomeAwayPatternSets()
-{
-  delete[] perm_rows;
-  delete[] perm_cols;
-  for (int i = 0; i < nteams; ++i) {
-    delete[] table[i];
-  }
-  delete[] table;
 }
 
 void HomeAwayPatternSets::set(const HomeAwayPatternSets &other)
@@ -51,32 +46,134 @@ HomeAway HomeAwayPatternSets::get(int t, int s) const
   return table[perm_rows[t]][perm_cols[s]];
 }
 
-void HomeAwayPatternSets::print() const
+void HomeAwayPatternSets::print()
 {
   print((HomeAwayPatternSetsPrintMode)0);
 }
 
-void HomeAwayPatternSets::print(HomeAwayPatternSetsPrintMode mode) const
+void HomeAwayPatternSets::print(HomeAwayPatternSetsPrintMode mode)
 {
-  switch(mode) {
-  case kHAP01: // HAPを0,1表現で出力
-    static char hapchar[] = {[kAway] = '0', [kHome] = '1'};
+  HomeAwayPatternSetsPrintMode current = print_mode;
+  print_mode = mode;
+  std::cout << *this << std::endl;
+  print_mode = current;
+}
+
+void HomeAwayPatternSets::transformRepresentative()
+{
+  constexpr bool DEBUG = false; // print for DEBUG
+  std::vector<std::vector<int>>
+    *row_feature, *pre_row_feature,
+    *col_feature, *pre_col_feature;
+
+  // 初期化
+  pre_row_feature = new std::vector<std::vector<int>>;
+  pre_col_feature = new std::vector<std::vector<int>>;
+  row_feature = new std::vector<std::vector<int>>(nteams, std::vector<int>(1, 0));
+  col_feature = new std::vector<std::vector<int>>(nteams-1, std::vector<int>(1, 0));
+
+  int cnt = 0;
+  if (DEBUG) print();
+  while (true) {
+
+    // 行の特徴量計算
+    delete pre_row_feature;
+    pre_row_feature = row_feature;
+    row_feature = new std::vector<std::vector<int>>(nteams);
     for (int t = 0; t < nteams; ++t) {
-      for (int s = 0; s < nteams - 1; ++s) {
-        printf("%c ", hapchar[get(t, s)]);
+      (*row_feature)[perm_rows[t]].reserve(nteams-1);
+      for (int s = 0; s < nteams-1; ++s) {
+        if (s == 0 || (s > 0 && (*col_feature)[perm_cols[s-1]] != (*col_feature)[perm_cols[s]]))
+          (*row_feature)[perm_rows[t]].push_back(get(t, s));
+        else
+          *((*row_feature)[perm_rows[t]].end()-1) += get(t, s);
+      }
+    }
+
+    if (DEBUG) {
+      printf("row feat: ");
+      for (int i = 0; i < nteams; ++i) {
+        printf("{");
+        for (int j : (*row_feature)[perm_rows[i]]) printf("%d,", j);
+        printf("}, ");
       }
       puts("");
     }
-    break;
 
-  case kONELINE: // HAPを1行で出力
-    for (int t = 0; t < nteams; ++t) {
-      for (int s = 0; s < nteams - 1; ++s) {
-        printf("%c ", hapchar[get(t, s)]);
+    // 終了条件
+    if (*pre_row_feature == *row_feature) return;
+
+    // 行の並び替え
+    for (unsigned fromi = 0, toi = fromi + 1; fromi < (*row_feature).size();
+         fromi = toi) {
+      while (toi < (*row_feature).size()
+             && (*pre_row_feature)[fromi] == (*pre_row_feature)[toi]) ++toi;
+      std::sort(perm_rows.begin() + fromi, perm_rows.begin() + toi,
+                [&](int lhs, int rhs) {
+                  return (*row_feature)[perm_rows[lhs]] < (*row_feature)[perm_rows[rhs]];
+                });
+    }
+
+    if (DEBUG) {
+      printf("row feat: ");
+      for (int i = 0; i < nteams; ++i) {
+        printf("{");
+        for (int j : (*row_feature)[perm_rows[i]]) printf("%d,", j);
+        printf("}, ");
+      }
+      puts("");
+      print();
+    }
+
+    // 列の特徴量計算
+    delete pre_col_feature;
+    pre_col_feature = col_feature;
+    col_feature = new std::vector<std::vector<int>>(nteams-1);
+    for (int s = 0; s < nteams-1; ++s) {
+      (*col_feature)[perm_cols[s]].reserve(nteams);
+      for (int t = 0; t < nteams; ++t) {
+        if (t == 0 || (t > 0 && (*row_feature)[perm_rows[t-1]] != (*row_feature)[perm_rows[t]]))
+          (*col_feature)[perm_cols[s]].push_back(get(t, s));
+        else
+          *((*col_feature)[perm_cols[s]].end()-1) += get(t, s);
       }
     }
-    puts("");
-    break;
+
+    if (DEBUG) {
+      printf("col feat: ");
+      for (int i = 0; i < nteams-1; ++i) {
+        printf("{");
+        for (int j : (*col_feature)[perm_cols[i]]) printf("%d,", j);
+        printf("}, ");
+      }
+      puts("");
+    }
+
+    // 終了条件
+    if (*pre_col_feature == *col_feature) return;
+
+    // 列の並び替え
+    for (unsigned fromi = 0, toi = fromi + 1; fromi < (*col_feature).size();
+         fromi = toi) {
+      while (toi < (*col_feature).size()
+             && (*pre_col_feature)[fromi] == (*pre_col_feature)[toi]) ++toi;
+      std::sort(perm_cols.begin() + fromi, perm_cols.begin() + toi,
+                [&](int lhs, int rhs) {
+                  return (*col_feature)[perm_cols[lhs]] < (*col_feature)[perm_cols[rhs]];
+                });
+    }
+
+    if (DEBUG) {
+      printf("col feat: ");
+      for (int i = 0; i < nteams-1; ++i) {
+        printf("{");
+        for (int j : (*col_feature)[perm_cols[i]]) printf("%d,", j);
+        printf("}, ");
+      }
+      puts("");
+      print();
+      if (++cnt >= 5) getchar();
+    }
   }
 }
 
@@ -142,6 +239,7 @@ bool HomeAwayPatternSets::satisfyAlphaWithAnySubsetOf(const std::set<int> teams)
 
 HomeAwayPatternSets& HomeAwayPatternSets::operator=(const HomeAwayPatternSets &other)
 {
+  print_mode = other.print_mode;
   for (int t = 0; t < nteams; ++t) {
     for (int s = 0; s < nteams-1; ++s) {
       table[t][s] = other.get(t, s);
@@ -163,4 +261,29 @@ bool HomeAwayPatternSets::operator==(const HomeAwayPatternSets &other) const
 bool HomeAwayPatternSets::operator!=(const HomeAwayPatternSets &other) const
 {
   return !(*this == other);
+}
+
+std::ostream& operator<<(std::ostream& os, const HomeAwayPatternSets &hap)
+{
+  switch(hap.print_mode) {
+  case kHAP01: // HAPを0,1表現で出力
+    static char hapchar[] = {[kAway] = '0', [kHome] = '1'};
+    for (int t = 0; t < hap.nteams; ++t) {
+      for (int s = 0; s < hap.nteams - 1; ++s) {
+        os << hapchar[hap.get(t, s)];
+        if (s < hap.nteams - 2) os << ' ';
+      }
+      os << std::endl;
+    }
+    break;
+
+  case kONELINE: // HAPを1行で出力
+    for (int t = 0; t < hap.nteams; ++t) {
+      for (int s = 0; s < hap.nteams - 1; ++s) {
+        os << hapchar[hap.get(t, s)] << ' ';
+      }
+    }
+    break;
+  }
+  return os;
 }

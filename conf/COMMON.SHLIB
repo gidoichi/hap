@@ -14,7 +14,7 @@
 Dir_tmp="$Homedir/tmp"
 
 # === windows上で起動している際の設定 ================================
-if type powershell.exe 1>&2 >/dev/null; then
-    export TMPDIR=$(wslpath $(powershell.exe -Command '$Home' | tr -d "\r") |
-                        sed 's#$#/AppData/Local/Temp#')
+if type powershell.exe 1>&2 >/dev/null &&
+   type wslpath 1>&2 >/dev/null; then
+    export TMPDIR=$(wslpath $(powershell.exe -Command '$env:temp' | tr -d "\r"))
 fi

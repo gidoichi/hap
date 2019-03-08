@@ -4,7 +4,7 @@
 #include <set>
 #include "../lib/home_away_pattern_sets.h"
 
-void recur(HomeAwayPatternSets &hap, int target);
+void recur(HomeAwayPatternSets &hap, int ipattern, int target);
 bool satAlphaIncludeLastTeam(HomeAwayPatternSets &hap, const std::set<int> &teams);
 
 int n; // チーム数
@@ -12,16 +12,18 @@ std::set<int> teamset; // チーム集合
 
 int main(int argc, char **argv) {
   n = atoi(argv[1]);
+  int ipattern; // home away patternの数値表現
   HomeAwayPatternSets hap(n); // HAP
 
   // init
   for (int i = 0; i < n; ++i) {
     teamset.insert(i);
   }
+  ipattern = 0;
 
   // メイン処理
   hap.print_mode = kONELINE;
-  recur(hap, 0);
+  recur(hap, ipattern, 0);
 
   return 0;
 }
@@ -30,18 +32,19 @@ int main(int argc, char **argv) {
 /**
  * 再帰を用いて，alphaを満たしかつ行の入れ替えを行ったHAPを出力
  * @param hap targetより前のチームが割り当て済みのHAP
+ * @param ipattern home away patternの10進展開表現
  * @param target チームtarget以降が全て変更される
  */
-void recur(HomeAwayPatternSets &hap, int target) {
+void recur(HomeAwayPatternSets &hap, int ipattern, int target) {
   // チームtarget以上の全てのチームに対し，あらゆるhome away patternで検証
-  for (int i = 0; i < (1 << (n - 1)); ++i){
+  for (; ipattern < (1 << (n - 1)); ++ipattern){
 
-    // チームtargetのhome away patternをipatternsに設定
+    // チームtargetのhome away patternをpatterns[target]に設定
     for (int s = 0; s < n-1; ++s)
-      hap.set(target, s, (HomeAway)((i >> s) % 2));
+      hap.set(target, s, (HomeAway)((ipattern >> s) % 2));
 
     // alphaを満たしたら続行
-    if (target < 1 ||
+    if (target < 2 ||
         satAlphaIncludeLastTeam(hap, std::set<int>(teamset.begin(),
                                                    std::next(teamset.begin(), target + 1)))) {
       if (target >= n-1) {
@@ -49,7 +52,7 @@ void recur(HomeAwayPatternSets &hap, int target) {
         std::cout << hap << std::endl;
       } else {
         // 未割り当があれば再帰
-        recur(hap, target + 1);
+        recur(hap, ipattern + 1, target + 1);
       }
     }
   }

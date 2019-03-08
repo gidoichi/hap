@@ -11,30 +11,27 @@ void Print(const HomeAwayPatternSets &hap);
 void Print(const PlayableSlotsSetTable &pst);
 
 int main(void) {
-  char *dir = new char[255];
-  getcwd(dir, 255);
-  std::ifstream file(std::string(dir) + "/data/Infeasible_HAP_set_of_Kashiwabara.txt", std::ifstream::in);
+  int nteams;
+  std::ifstream file("data/Infeasible_HAP_set_of_Kashiwabara.txt", std::ifstream::in);
   if (!file.is_open()) {
     puts("File open error.");
     return 0;
   }
-  int n;
-  file >> n;
-  HomeAwayPatternSets hap(n);
-  for (int t = 0; t < n; ++t) {
-    for (int s = 0; s < n-1; ++s) {
-      static HomeAway hapint[] = {kAway, kHome};
+  file >> nteams;
+
+  // Kashiwabara HAPの読み込み
+  HomeAwayPatternSets hap(nteams);
+  for (int t = 0; t < nteams; ++t) {
+    for (int s = 0; s < nteams-1; ++s) {
       int ha;
       file >> ha;
-      hap.set(t, s, hapint[ha]);
+      hap.set(t, s, (HomeAway)ha);
     }
   }
   file.close();
-  hap.print();
 
-  PlayableSlotsSetTable pst(hap);
-  puts("");
-  pst.print();
+  hap.print_mode = kONELINE;
+  std::cout << nteams << ' ' << nteams-1 << ' ' << hap << std::endl;
 
   return 0;
 }
